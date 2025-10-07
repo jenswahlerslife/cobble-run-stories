@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import slugify from "slugify";
-import { ArrowLeft, Save, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, Upload, X, Crop, Eye } from "lucide-react";
+import { ImageCropDialog } from "@/components/admin/ImageCropDialog";
+import { PostPreview } from "@/components/admin/PostPreview";
 
 const AdminEditor = () => {
   const { id } = useParams();
@@ -32,6 +34,9 @@ const AdminEditor = () => {
   const [excerpt, setExcerpt] = useState("");
   const [content, setContent] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [tempImageForCrop, setTempImageForCrop] = useState("");
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [tags, setTags] = useState("");
   const [readingMinutes, setReadingMinutes] = useState(5);
   const [status, setStatus] = useState<"draft" | "published">("draft");
@@ -99,16 +104,31 @@ const AdminEditor = () => {
       return;
     }
 
+    // Show the image in crop dialog first
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempImageForCrop(reader.result as string);
+      setShowCropDialog(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = async (croppedImageUrl: string) => {
+    if (!user) return;
+    
     setUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      // Convert blob URL to blob
+      const response = await fetch(croppedImageUrl);
+      const blob = await response.blob();
+
+      const fileName = `${user.id}-${Date.now()}.jpg`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(filePath, file, {
+        .upload(filePath, blob, {
           cacheControl: '3600',
           upsert: false,
         });
@@ -141,6 +161,15 @@ const AdminEditor = () => {
 
   const handleRemoveImage = () => {
     setCoverImageUrl("");
+  };
+
+  const handleOpenPreview = () => {
+    const tagsArray = tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag);
+    
+    setShowPreview(true);
   };
 
   const handleTitleChange = (value: string) => {
@@ -259,9 +288,21 @@ const AdminEditor = () => {
             Tilbage til oversigt
           </Button>
 
-          <h1 className="text-4xl font-headline font-bold mb-8">
+          <h1 className="text-4xl font-headline font-bold mb-4">
             {id ? "Rediger opslag" : "Nyt opslag"}
           </h1>
+
+          <div className="flex gap-2 mb-8">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleOpenPreview}
+              disabled={!title || !content}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Preview opslag
+            </Button>
+          </div>
 
           <div className="space-y-6">
             <div className="space-y-2">
@@ -305,15 +346,27 @@ const AdminEditor = () => {
                       alt="Cover preview"
                       className="w-full h-full object-cover"
                     />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={handleRemoveImage}
-                      type="button"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          setTempImageForCrop(coverImageUrl);
+                          setShowCropDialog(true);
+                        }}
+                        type="button"
+                      >
+                        <Crop className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={handleRemoveImage}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
                 
@@ -418,6 +471,24 @@ const AdminEditor = () => {
           </div>
         </div>
       </main>
+
+      <ImageCropDialog
+        imageUrl={tempImageForCrop}
+        open={showCropDialog}
+        onClose={() => setShowCropDialog(false)}
+        onCropComplete={handleCropComplete}
+      />
+
+      <PostPreview
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        title={title}
+        excerpt={excerpt}
+        content={content}
+        coverImageUrl={coverImageUrl}
+        tags={tags.split(",").map((tag) => tag.trim()).filter((tag) => tag)}
+        readingMinutes={readingMinutes}
+      />
 
       <Footer />
     </div>
