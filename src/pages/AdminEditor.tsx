@@ -1,0 +1,314 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import slugify from "slugify";
+import { ArrowLeft, Save } from "lucide-react";
+
+const AdminEditor = () => {
+  const { id } = useParams();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [content, setContent] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [tags, setTags] = useState("");
+  const [readingMinutes, setReadingMinutes] = useState(5);
+  const [status, setStatus] = useState<"draft" | "published">("draft");
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (id) {
+      fetchPost();
+    }
+  }, [id]);
+
+  const fetchPost = async () => {
+    if (!id) return;
+
+    const { data, error } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      toast({
+        title: "Fejl",
+        description: "Kunne ikke hente opslag",
+        variant: "destructive",
+      });
+    } else if (data) {
+      setTitle(data.title);
+      setSlug(data.slug);
+      setExcerpt(data.excerpt);
+      setContent(data.content);
+      setCoverImageUrl(data.cover_image_url || "");
+      setTags(data.tags.join(", "));
+      setReadingMinutes(data.reading_minutes);
+      setStatus(data.status as "draft" | "published");
+    }
+  };
+
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    if (!id) {
+      setSlug(
+        slugify(value, {
+          lower: true,
+          strict: true,
+          locale: "da",
+        })
+      );
+    }
+  };
+
+  const handleSave = async (publishNow = false) => {
+    if (!user) return;
+
+    if (!title || !excerpt || !content) {
+      toast({
+        title: "Fejl",
+        description: "Udfyld titel, uddrag og indhold",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    const tagsArray = tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag);
+
+    const postData = {
+      title,
+      slug,
+      excerpt,
+      content,
+      cover_image_url: coverImageUrl || null,
+      tags: tagsArray,
+      reading_minutes: readingMinutes,
+      status: publishNow ? "published" : status,
+      published_at: publishNow ? new Date().toISOString() : null,
+      author_id: user.id,
+    };
+
+    if (id) {
+      const { error } = await supabase
+        .from("posts")
+        .update(postData)
+        .eq("id", id);
+
+      if (error) {
+        toast({
+          title: "Fejl",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Gemt",
+          description: "Opslaget er opdateret",
+        });
+        navigate("/admin");
+      }
+    } else {
+      const { error } = await supabase.from("posts").insert([postData]);
+
+      if (error) {
+        toast({
+          title: "Fejl",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Oprettet",
+          description: "Opslaget er oprettet",
+        });
+        navigate("/admin");
+      }
+    }
+
+    setLoading(false);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Indlæser...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+
+      <main className="flex-1">
+        <div className="container mx-auto px-4 py-12 max-w-4xl">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/admin")}
+            className="mb-8"
+          >
+            <ArrowLeft className="mr-2 w-4 h-4" />
+            Tilbage til oversigt
+          </Button>
+
+          <h1 className="text-4xl font-headline font-bold mb-8">
+            {id ? "Rediger opslag" : "Nyt opslag"}
+          </h1>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title">Titel</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder="Brostensintervaller på Dronning Louises"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="slug">Slug (URL)</Label>
+              <Input
+                id="slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="brostensintervaller-dronning-louises"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="excerpt">Uddrag (2-3 linjer)</Label>
+              <Textarea
+                id="excerpt"
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                placeholder="4×800, sidevind og flade sko."
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cover">Cover billede URL</Label>
+              <Input
+                id="cover"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (kommasepareret)</Label>
+              <Input
+                id="tags"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="Nørrebro, Interval, Træning"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="reading">Læsetid (minutter)</Label>
+                <Input
+                  id="reading"
+                  type="number"
+                  value={readingMinutes}
+                  onChange={(e) => setReadingMinutes(Number(e.target.value))}
+                  min={1}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select value={status} onValueChange={(v) => setStatus(v as "draft" | "published")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Udkast</SelectItem>
+                    <SelectItem value="published">Publiceret</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="content">Indhold (Markdown)</Label>
+              <Textarea
+                id="content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Skriv dit opslag her... Du kan bruge Markdown formatering."
+                rows={20}
+                className="font-mono"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                onClick={() => handleSave(false)}
+                disabled={loading}
+                variant="outline"
+                size="lg"
+              >
+                <Save className="mr-2 w-4 h-4" />
+                Gem udkast
+              </Button>
+              <Button
+                onClick={() => handleSave(true)}
+                disabled={loading}
+                size="lg"
+              >
+                Publicér
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default AdminEditor;

@@ -13,7 +13,16 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        headline: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        'cph-green': 'hsl(var(--cph-green))',
+        'harbor-blue': 'hsl(var(--harbor-blue))',
+        'asphalt': 'hsl(var(--asphalt))',
+        'coal': 'hsl(var(--coal))',
+        'sand': 'hsl(var(--sand))',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
