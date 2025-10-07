@@ -9,7 +9,7 @@ const Om = () => {
       <main className="flex-1">
         <div className="container mx-auto px-4 py-16 max-w-3xl">
           <h1 className="text-5xl md:text-7xl font-headline font-bold mb-8 tracking-tight">
-            LØB KBH
+            Runaro
           </h1>
           
           <div className="prose prose-lg dark:prose-invert max-w-none">
@@ -25,14 +25,14 @@ const Om = () => {
               Intervaller mellem cykler. Longruns langs havnen. Fællesløb på Amager Fælled.
             </p>
             <p>
-              LØB KBH handler om at dele ruter, træning, og urban running culture. Uden BS. Bare løb.
+              Runaro handler om at dele ruter, træning, og urban running culture. Uden BS. Bare løb.
             </p>
 
             <h2 className="text-3xl font-headline font-bold mt-12 mb-4">Kontakt</h2>
             <p>
               Skriv til os på{" "}
-              <a href="mailto:hej@lobkbh.dk" className="text-primary hover:underline">
-                hej@lobkbh.dk
+              <a href="mailto:hej@runaro.dk" className="text-primary hover:underline">
+                hej@runaro.dk
               </a>
             </p>
           </div>

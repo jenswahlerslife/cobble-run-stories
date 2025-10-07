@@ -59,7 +59,7 @@ const Index = () => {
         <section className="py-16 md:py-24 border-b border-border">
           <div className="container mx-auto px-4">
             <h1 className="text-5xl md:text-7xl font-headline font-bold mb-6 tracking-tight">
-              LØB KBH
+              Runaro
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl">
               Urban running culture. Fra brostensintervaller på Nørrebro til sunrise runs ved havnen.

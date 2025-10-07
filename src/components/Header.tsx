@@ -30,7 +30,7 @@ export const Header = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <h1 className="text-2xl md:text-3xl font-headline font-bold tracking-tight">
-            LØB KBH
+            Runaro
           </h1>
         </Link>
 
