@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import slugify from "slugify";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Upload, X } from "lucide-react";
 
 const AdminEditor = () => {
   const { id } = useParams();
@@ -26,6 +26,7 @@ const AdminEditor = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -72,6 +73,74 @@ const AdminEditor = () => {
       setReadingMinutes(data.reading_minutes);
       setStatus(data.status as "draft" | "published");
     }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Fejl",
+        description: "Kun billedfiler er tilladt",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Fejl",
+        description: "Billedet må max være 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('post-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(filePath);
+
+      setCoverImageUrl(publicUrl);
+      
+      toast({
+        title: "Upload succesfuld",
+        description: "Billedet er uploadet",
+      });
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload fejlede",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setCoverImageUrl("");
   };
 
   const handleTitleChange = (value: string) => {
@@ -227,13 +296,57 @@ const AdminEditor = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cover">Cover billede URL</Label>
-              <Input
-                id="cover"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://..."
-              />
+              <Label htmlFor="cover">Cover billede</Label>
+              <div className="flex flex-col gap-4">
+                {coverImageUrl && (
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border">
+                    <img
+                      src={coverImageUrl}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={handleRemoveImage}
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Input
+                    id="cover-file"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('cover-file')?.click()}
+                    disabled={uploading}
+                    className="flex-1"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {uploading ? "Uploader..." : "Upload billede"}
+                  </Button>
+                  
+                  <div className="flex-1">
+                    <Input
+                      id="cover-url"
+                      value={coverImageUrl}
+                      onChange={(e) => setCoverImageUrl(e.target.value)}
+                      placeholder="Eller indsæt URL..."
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
